@@ -5,6 +5,7 @@ import io.vertx.ext.dropwizard.MatchType;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -41,5 +42,16 @@ class Matcher {
       }
     }
     return false;
+  }
+
+  Optional<String> getRegexMatch(String value) {
+    if (regexMatches.length > 0) {
+      for (Pattern pattern : regexMatches) {
+        if (pattern.matcher(value).matches()) {
+          return Optional.of(pattern.pattern());
+        }
+      }
+    }
+    return Optional.empty();
   }
 }

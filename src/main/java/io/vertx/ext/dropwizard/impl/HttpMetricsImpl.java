@@ -24,6 +24,7 @@ import io.vertx.ext.dropwizard.ThroughputMeter;
 import io.vertx.ext.dropwizard.ThroughputTimer;
 
 import java.util.EnumMap;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -69,12 +70,15 @@ abstract class HttpMetricsImpl extends TCPMetricsImpl {
    *
    * @param metric the request metric
    * @param statusCode the status code, {@code 0} means a reset
-   * @param monitorUri the monitored uri
+   * @param requestMetricUri the monitored uri
+   * @param uriMatcher instance of Matcher
    */
-  protected long end(RequestMetric metric, int statusCode, boolean monitorUri) {
+  protected long end(RequestMetric metric, int statusCode, String requestMetricUri, Matcher uriMatcher) {
     if (closed) {
       return 0;
     }
+
+    boolean monitorUri = requestMetricUri != null && uriMatcher.match(requestMetricUri);
 
     long duration = System.nanoTime() - metric.requestBegin;
     int responseStatus = statusCode / 100;
@@ -92,6 +96,12 @@ abstract class HttpMetricsImpl extends TCPMetricsImpl {
       methodRequests.get(metric.method).update(duration, TimeUnit.NANOSECONDS);
       if (metric.uri != null && monitorUri) {
         throughputTimer(metric.method.toString().toLowerCase() + "-requests", metric.uri).update(duration, TimeUnit.NANOSECONDS);
+
+        Optional<String> regexMatch = uriMatcher.getRegexMatch(requestMetricUri);
+        if (regexMatch.isPresent()) {
+          throughputTimer(metric.method.toString().toLowerCase() + "-requests", regexMatch.get().replace("*", "_")).update(duration, TimeUnit.NANOSECONDS);
+        }
+
       }
     } else if (metric.uri != null && monitorUri) {
       throughputTimer("requests", metric.uri).update(duration, TimeUnit.NANOSECONDS);
